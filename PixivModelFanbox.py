@@ -3,6 +3,7 @@
 import codecs
 import os
 
+from BeautifulSoup import BeautifulSoup
 import demjson
 import datetime_z
 
@@ -82,7 +83,7 @@ class FanboxPost(object):
     worksDate = ""
     worksDateDateTime = None
     updatedDatetime = ""
-    # image|text|file|article|video
+    # image|text|file|article|video|entry
     type = ""
     body_text = ""
     images = None
@@ -103,7 +104,7 @@ class FanboxPost(object):
     bookmark_count = 0
     image_response_count = 0
 
-    _supportedType = ["image", "text", "file", "article", "video"]
+    _supportedType = ["image", "text", "file", "article", "video", "entry"]
     embeddedFiles = None
     provider = None
 
@@ -122,6 +123,8 @@ class FanboxPost(object):
                 self.parseImages(page)
             if self.type == 'file':
                 self.parseFiles(page)
+            if self.type == 'entry':
+                self.parseEntry(page)
 
         # compatibility for PixivHelper.makeFilename()
         self.imageCount = len(self.images)
@@ -242,6 +245,21 @@ class FanboxPost(object):
             self.images.append(image["url"])
             if image["url"] not in self.embeddedFiles:
                 self.embeddedFiles.append(image["url"])
+
+    def parseEntry(self, jsPost):
+        soup = BeautifulSoup(jsPost["body"]["html"])
+        for image in soup.findAll("img"):
+            if "data-src-original" in image:
+                src = image["data-src-original"]
+            else:
+                src = image["src"]
+            self.images.append(src)
+            if src not in self.embeddedFiles:
+                self.embeddedFiles.append(src)
+        for a in soup.findAll(href=True):
+            if a['href'].startswith('https://fanbox.pixiv.net/files/'):
+                if a['href'] not in self.embeddedFiles:
+                    self.embeddedFiles.append(a['href'])
 
     def WriteInfo(self, filename):
         info = None
